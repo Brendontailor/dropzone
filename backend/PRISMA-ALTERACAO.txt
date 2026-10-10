@@ -1,0 +1,25 @@
+No model Avaliacao do prisma/schema.prisma, adicione:
+
+respostaAdmin String?
+
+Exemplo:
+
+model Avaliacao {
+  nota          Int
+  comentario    String?
+  respostaAdmin String?
+  criadoEm      DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int
+  produtoId     Int
+  produto       Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, produtoId])
+}
+
+Depois rode:
+
+npx prisma db push
+npx prisma generate
+npx tsc --noEmit

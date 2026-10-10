@@ -154,5 +154,5 @@ O projeto busca aplicar conhecimentos relacionados a:
 
 ## 👥 Desenvolvedores
 
-- [Brendontailor](https://github.com/Brendontailor)]
-- [Leonardorosler](https://github.com/leonardorosler)]
+- [Integrante 1]
+- [Integrante 2]

@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "description": "API responsável pelo backend de uma plataforma web de vitrine e venda de roupas, desenvolvida como projeto acadêmico do curso de **Análise e Desenvolvimento de Sistemas do SENAC-RS**.",
   "main": "index.js",
-  "scripts": {
-    "dev": "npx tsx watch src/server.ts"
-  },
+"scripts": {
+  "dev": "npx tsx watch src/server.ts",
+  "build": "npx prisma generate && npx tsc && node -e \"require('node:fs').cpSync('src/generated', 'dist/generated', { recursive: true })\"",
+  "start": "node dist/server.js",
+  "db:migrate": "npx prisma migrate deploy",
+  "db:seed": "npx prisma db seed"
+},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/leonardorosler/dropzone-backend.git"
@@ -19,6 +23,7 @@
   },
   "homepage": "https://github.com/leonardorosler/dropzone-backend#readme",
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcrypt": "^6.0.0",

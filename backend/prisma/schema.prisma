@@ -32,6 +32,7 @@ model Produto {
   descricao    String
   preco        Decimal           @db.Decimal(10, 2)
   disponivel   Boolean           @default(true)
+  destaque     Boolean           @default(false)
   criadoEm     DateTime          @default(now())
   atualizadoEm DateTime          @updatedAt
   id           Int               @id @default(autoincrement())
@@ -93,14 +94,15 @@ model Favorito {
 }
 
 model Avaliacao {
-  nota       Int
-  comentario String?
-  criadoEm   DateTime @default(now())
-  id         Int      @id @default(autoincrement())
-  usuarioId  Int
-  produtoId  Int
-  produto    Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
-  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nota          Int
+  comentario    String?
+  respostaAdmin String?
+  criadoEm      DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int
+  produtoId     Int
+  produto       Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, produtoId])
 }

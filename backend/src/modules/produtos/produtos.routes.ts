@@ -1,28 +1,51 @@
 import { Router } from "express";
-
+import { authMiddleware } from "../../middlewares/auth.middleware.js";
+import { adminMiddleware } from "../../middlewares/admin.middleware.js";
 import {
-    atualizarDisponibilidadeProdutoController,
-    atualizarProdutoController,
+  atualizarDisponibilidadeProdutoController,
+  atualizarDisponibilidadeVariacaoController,
+  atualizarProdutoController,
+  buscarProdutoPorIdController,
   criarProdutoController,
+  criarVariacaoProdutoController,
   deletarProdutoController,
   listarProdutosController,
+  listarVariacoesProdutoController,
 } from "./produtos.controller.js";
 
 export const produtosRoutes = Router();
-///incluir produto
-produtosRoutes.post("/", criarProdutoController);
 
-//listar produto
+produtosRoutes.post("/", authMiddleware, adminMiddleware, criarProdutoController);
 produtosRoutes.get("/", listarProdutosController);
 
-///editar produto existente
-produtosRoutes.put("/:id", atualizarProdutoController);
+// Variações ficam dentro do módulo de produtos, então não precisa alterar o app.ts.
+produtosRoutes.post(
+  "/:produtoId/variacoes",
+  authMiddleware,
+  adminMiddleware,
+  criarVariacaoProdutoController
+);
 
+produtosRoutes.get(
+  "/:produtoId/variacoes",
+  listarVariacoesProdutoController
+);
 
-// atualizar disponibilidade 
-produtosRoutes.patch(  "/:id/disponibilidade", atualizarDisponibilidadeProdutoController);
+produtosRoutes.patch(
+  "/variacoes/:id/disponibilidade",
+  authMiddleware,
+  adminMiddleware,
+  atualizarDisponibilidadeVariacaoController
+);
 
+produtosRoutes.get("/:id", buscarProdutoPorIdController);
+produtosRoutes.put("/:id", authMiddleware, adminMiddleware, atualizarProdutoController);
 
-//************* cuidado ************ */
-///deleta do banco
-produtosRoutes.delete("/:id", deletarProdutoController);
+produtosRoutes.patch(
+  "/:id/disponibilidade",
+  authMiddleware,
+  adminMiddleware,
+  atualizarDisponibilidadeProdutoController
+);
+
+produtosRoutes.delete("/:id", authMiddleware, adminMiddleware, deletarProdutoController);
