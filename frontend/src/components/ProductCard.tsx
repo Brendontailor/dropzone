@@ -18,6 +18,7 @@ export function ProductCard({ produto, modoHome = false }: ProductCardProps) {
   const { estaLogado } = useAuth();
   const [favoritado, setFavoritado] = useState(false);
   const [carregandoFavorito, setCarregandoFavorito] = useState(false);
+  const [erroFavorito, setErroFavorito] = useState("");
   const [hoverIndex, setHoverIndex] = useState(0);
   const [imagemComErro, setImagemComErro] = useState(false);
   const [imagensCarregadas, setImagensCarregadas] = useState<string[]>([]);
@@ -76,6 +77,7 @@ export function ProductCard({ produto, modoHome = false }: ProductCardProps) {
     }
 
     setCarregandoFavorito(true);
+    setErroFavorito("");
 
     try {
       if (favoritado) {
@@ -85,8 +87,8 @@ export function ProductCard({ produto, modoHome = false }: ProductCardProps) {
         await adicionarFavorito(produto.id);
         setFavoritado(true);
       }
-    } catch {
-      setFavoritado((estadoAtual) => estadoAtual);
+    } catch (error) {
+      setErroFavorito(error instanceof Error ? error.message : "Não foi possível atualizar os favoritos.");
     } finally {
       setCarregandoFavorito(false);
     }
@@ -150,6 +152,7 @@ export function ProductCard({ produto, modoHome = false }: ProductCardProps) {
         >
           <Heart size={18} fill={favoritado ? "currentColor" : "none"} />
         </button>
+        {erroFavorito && <span className="favorite-error" role="status">{erroFavorito}</span>}
       </div>
 
       <a className="product-info" href={`/produtos/${produto.id}`}>

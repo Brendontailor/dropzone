@@ -6,6 +6,7 @@ interface CriarProdutoData {
   descricao: string;
   preco: number;
   imagemUrl?: string;
+  imagemUrls?: string[];
   categoriaId: number;
   destaque?: boolean;
 }
@@ -17,6 +18,7 @@ interface AtualizarProdutoData {
   categoriaId: number;
   destaque?: boolean;
   imagemUrl?: string;
+  imagemUrls?: string[];
 }
 
 interface ListarProdutosFiltros {
@@ -35,7 +37,7 @@ interface CriarVariacaoData {
 
 const produtoInclude = {
   categoria: true,
-  imagens: { orderBy: { id: "asc" as const } },
+  imagens: true,
   variacoes: {
     include: {
       cor: true,
@@ -79,6 +81,12 @@ export async function criarProduto(data: CriarProdutoData) {
     return null;
   }
 
+  const imagemUrls = Array.isArray(data.imagemUrls)
+    ? [...new Set(data.imagemUrls.filter((url) => typeof url === "string" && url.trim()).map((url) => url.trim()))]
+    : data.imagemUrl?.trim()
+      ? [data.imagemUrl.trim()]
+      : [];
+
   const produto = await prisma.produto.create({
     data: {
       nome: data.nome,
@@ -86,12 +94,8 @@ export async function criarProduto(data: CriarProdutoData) {
       preco: data.preco,
       categoriaId: data.categoriaId,
       destaque: data.destaque ?? false,
-      imagens: data.imagemUrl
-        ? {
-            create: {
-              imagemUrl: data.imagemUrl,
-            },
-          }
+      imagens: imagemUrls.length > 0
+        ? { create: imagemUrls.map((imagemUrl) => ({ imagemUrl })) }
         : undefined,
     },
     include: produtoInclude,
@@ -145,21 +149,17 @@ export async function atualizarProduto(
     destaque: data.destaque,
   };
 
-  // Preserva ângulos adicionais ao editar preço, nome e demais campos.
-  // Se o admin alterar a capa, substitui apenas a primeira imagem.
-  if (data.imagemUrl !== undefined) {
-    if (data.imagemUrl) {
-      const capa = await prisma.produtoImagem.findFirst({
-        where: { produtoId: id }, orderBy: { id: "asc" },
-      });
-      if (!capa) {
-        await prisma.produtoImagem.create({ data: { produtoId: id, imagemUrl: data.imagemUrl } });
-      } else if (capa.imagemUrl !== data.imagemUrl) {
-        await prisma.produtoImagem.update({ where: { id: capa.id }, data: { imagemUrl: data.imagemUrl } });
-      }
-    } else {
-      updateData.imagens = { deleteMany: {} };
-    }
+  if (data.imagemUrls !== undefined || data.imagemUrl !== undefined) {
+    const imagemUrls = Array.isArray(data.imagemUrls)
+      ? [...new Set(data.imagemUrls.filter((url) => typeof url === "string" && url.trim()).map((url) => url.trim()))]
+      : data.imagemUrl?.trim()
+        ? [data.imagemUrl.trim()]
+        : [];
+
+    updateData.imagens = {
+      deleteMany: {},
+      create: imagemUrls.map((imagemUrl) => ({ imagemUrl })),
+    };
   }
 
   const produto = await prisma.produto.update({

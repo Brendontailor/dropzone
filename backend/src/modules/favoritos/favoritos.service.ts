@@ -12,16 +12,15 @@ const produtoFavoritoInclude = {
 };
 
 // Adicionar produto aos favoritos
-export async function adicionarFavorito(  usuarioId: number,  produtoId: number) 
-{
-  const favorito = await prisma.favorito.create({
-    data: {
-      usuarioId,
-      produtoId,
+export async function adicionarFavorito(usuarioId: number, produtoId: number) {
+  // Repetir o clique não deve gerar erro de chave única.
+  return prisma.favorito.upsert({
+    where: {
+      usuarioId_produtoId: { usuarioId, produtoId },
     },
+    create: { usuarioId, produtoId },
+    update: {},
   });
-
-  return favorito;
 }
 
 

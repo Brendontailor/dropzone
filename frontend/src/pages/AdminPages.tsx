@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigation } from "../components/NavigationContext";
 import { Edit, Trash2 } from "lucide-react";
 import { importarNovoLote } from "../api/looks";
@@ -278,11 +278,11 @@ export function AdminProductsPage() {
     descricao: "",
     preco: "",
     categoriaId: "",
-    imagemUrl: "",
     destaque: false,
   });
-  const [imagemFile, setImagemFile] = useState<File | null>(null);
-  const [imagemPreview, setImagemPreview] = useState<string | null>(null);
+  const [imagensExistentes, setImagensExistentes] = useState<string[]>([]);
+  const [imagemPreviews, setImagemPreviews] = useState<Array<{ file: File; url: string }>>([]);
+  const previewsTemporariosRef = useRef<string[]>([]);
   const [uploadandoImagem, setUploadandoImagem] = useState(false);
   const [variacaoForm, setVariacaoForm] = useState({
     corId: "",
@@ -320,32 +320,51 @@ export function AdminProductsPage() {
     carregar();
   }, []);
 
+  useEffect(() => () => {
+    previewsTemporariosRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewsTemporariosRef.current = [];
+  }, []);
+
+  function limparPreviewsTemporarios() {
+    previewsTemporariosRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewsTemporariosRef.current = [];
+    setImagemPreviews([]);
+  }
+
+  function removerPreviewTemporario(url: string) {
+    URL.revokeObjectURL(url);
+    previewsTemporariosRef.current = previewsTemporariosRef.current.filter((item) => item !== url);
+    setImagemPreviews((lista) => lista.filter((imagem) => imagem.url !== url));
+  }
+
   function limparForm() {
+    limparPreviewsTemporarios();
     setEditandoId(null);
     setForm({
       nome: "",
       descricao: "",
       preco: "",
       categoriaId: "",
-      imagemUrl: "",
       destaque: false,
     });
-    setImagemFile(null);
-    setImagemPreview(null);
+    setImagensExistentes([]);
   }
 
   function editar(produto: Produto) {
+    limparPreviewsTemporarios();
     setEditandoId(produto.id);
-    const imagemUrl = produto.imagens?.[0]?.imagemUrl ?? "";
+    setImagensExistentes(
+      (produto.imagens ?? [])
+        .map((imagem) => imagem.imagemUrl)
+        .filter((url): url is string => Boolean(url))
+    );
     setForm({
       nome: produto.nome,
       descricao: produto.descricao ?? "",
       preco: String(produto.preco),
       categoriaId: String(produto.categoriaId ?? produto.categoria?.id ?? ""),
-      imagemUrl,
       destaque: Boolean(produto.destaque),
     });
-    setImagemPreview(imagemUrl || null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -363,27 +382,32 @@ export function AdminProductsPage() {
     };
 
     try {
-      let imagemUrlFinal = form.imagemUrl.trim() || undefined;
+      const imagensUrlsFinais = [...imagensExistentes];
 
-      if (imagemFile) {
+      if (imagemPreviews.length > 0) {
         setUploadandoImagem(true);
         try {
-          const resultado = await uploadImagemProduto(imagemFile);
-          imagemUrlFinal = resultado.url;
+          const uploads = await Promise.all(
+            imagemPreviews.map(({ file }) => uploadImagemProduto(file))
+          );
+          imagensUrlsFinais.push(...uploads.map((upload) => upload.url));
         } finally {
           setUploadandoImagem(false);
         }
       }
 
+      const payloadComImagens = {
+        ...payload,
+        imagemUrls: imagensUrlsFinais,
+        imagemUrl: imagensUrlsFinais[0],
+      };
+
       if (editandoId) {
-        await atualizarProduto(editandoId, { ...payload, imagemUrl: imagemUrlFinal });
-        setMensagem("Produto atualizado.");
+        await atualizarProduto(editandoId, payloadComImagens);
+        setMensagem(`Produto atualizado com ${imagensUrlsFinais.length} foto(s).`);
       } else {
-        await criarProduto({
-          ...payload,
-          imagemUrl: imagemUrlFinal,
-        });
-        setMensagem("Produto cadastrado.");
+        await criarProduto(payloadComImagens);
+        setMensagem(`Produto cadastrado com ${imagensUrlsFinais.length} foto(s).`);
       }
 
       limparForm();
@@ -551,42 +575,60 @@ export function AdminProductsPage() {
             ))}
           </select>
         </label>
-        <label>
-          Imagem do Produto
-          <div className="imagem-upload">
+        <div className="dz-product-upload-field">
+          <label htmlFor="produto-imagens">Fotos do produto</label>
+          <div className="imagem-upload dz-multi-image-upload">
+            <p>Selecione várias fotos de uma vez. No cadastro, todas serão salvas na galeria do produto.</p>
             <input
+              id="produto-imagens"
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              multiple
               onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  setImagemFile(file);
-                  setImagemPreview(URL.createObjectURL(file));
-                  setForm({ ...form, imagemUrl: file.name });
+                const arquivos = Array.from(event.currentTarget.files ?? []);
+                if (arquivos.length > 0) {
+                  const novosPreviews = arquivos.map((file) => ({
+                    file,
+                    url: URL.createObjectURL(file),
+                  }));
+                  previewsTemporariosRef.current.push(...novosPreviews.map((imagem) => imagem.url));
+                  setImagemPreviews((atuais) => [...atuais, ...novosPreviews]);
                 }
+                event.currentTarget.value = "";
               }}
               disabled={uploadandoImagem}
             />
-            {imagemPreview && (
-              <div className="imagem-preview">
-                <img src={imagemPreview} alt="Preview" />
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => {
-                    setImagemFile(null);
-                    setImagemPreview(null);
-                    setForm({ ...form, imagemUrl: "" });
-                  }}
-                  disabled={uploadandoImagem}
-                >
-                  Remover
-                </button>
+            {(imagensExistentes.length > 0 || imagemPreviews.length > 0) && (
+              <div className="dz-product-image-grid">
+                {imagensExistentes.map((url, index) => (
+                  <article className="dz-product-image-tile" key={`existente-${index}-${url}`}>
+                    <img src={url} alt={`Foto salva ${index + 1}`} />
+                    <span>{index === 0 ? "Foto principal" : `Foto ${index + 1}`} · salva</span>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setImagensExistentes((atuais) => atuais.filter((_, i) => i !== index))}
+                      disabled={uploadandoImagem}
+                    >Remover</button>
+                  </article>
+                ))}
+                {imagemPreviews.map((imagem, index) => (
+                  <article className="dz-product-image-tile" key={imagem.url}>
+                    <img src={imagem.url} alt={`Nova foto ${index + 1}`} />
+                    <span>{imagensExistentes.length + index === 0 ? "Foto principal" : "Nova foto"}</span>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => removerPreviewTemporario(imagem.url)}
+                      disabled={uploadandoImagem}
+                    >Remover</button>
+                  </article>
+                ))}
               </div>
             )}
-            {uploadandoImagem && <span className="upload-status">Enviando...</span>}
+            {uploadandoImagem && <span className="upload-status">Enviando fotos...</span>}
           </div>
-        </label>
+        </div>
         <label className="span-2">
           Descrição
           <textarea value={form.descricao} onChange={(event) => setForm({ ...form, descricao: event.target.value })} />

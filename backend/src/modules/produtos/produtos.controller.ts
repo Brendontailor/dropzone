@@ -14,7 +14,7 @@ import {
 
 export async function criarProdutoController(req: Request, res: Response) {
   try {
-    const { nome, descricao, preco, imagemUrl, categoriaId, destaque } = req.body;
+    const { nome, descricao, preco, imagemUrl, imagemUrls, categoriaId, destaque } = req.body;
 
     if (!nome || !descricao || preco === undefined || !categoriaId) {
       return res.status(400).json({
@@ -26,7 +26,10 @@ export async function criarProdutoController(req: Request, res: Response) {
       nome,
       descricao,
       preco: Number(preco),
-      imagemUrl,
+      imagemUrl: typeof imagemUrl === "string" ? imagemUrl : undefined,
+      imagemUrls: Array.isArray(imagemUrls)
+        ? imagemUrls.filter((url: unknown): url is string => typeof url === "string")
+        : undefined,
       categoriaId: Number(categoriaId),
       destaque: Boolean(destaque),
     });
@@ -143,6 +146,10 @@ export async function atualizarProdutoController(
       categoriaId: Number(req.body.categoriaId),
       destaque:
         req.body.destaque === undefined ? undefined : Boolean(req.body.destaque),
+      imagemUrl: typeof req.body.imagemUrl === "string" ? req.body.imagemUrl : undefined,
+      imagemUrls: Array.isArray(req.body.imagemUrls)
+        ? req.body.imagemUrls.filter((url: unknown): url is string => typeof url === "string")
+        : undefined,
     });
 
     return res.status(200).json(produto);

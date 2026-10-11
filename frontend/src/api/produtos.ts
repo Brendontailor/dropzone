@@ -35,6 +35,7 @@ export function criarProduto(data: {
   preco: number;
   categoriaId: number;
   imagemUrl?: string;
+  imagemUrls?: string[];
   destaque?: boolean;
 }) {
   return apiFetch<Produto>("/produtos", {
@@ -53,6 +54,7 @@ export function atualizarProduto(
     categoriaId: number;
     destaque?: boolean;
     imagemUrl?: string;
+    imagemUrls?: string[];
   }
 ) {
   return apiFetch<Produto>(`/produtos/${id}`, {

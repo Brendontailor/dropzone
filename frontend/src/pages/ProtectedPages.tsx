@@ -1,4 +1,4 @@
-import { Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Heart, MessageCircle, Minus, Plus, ShoppingBag, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { buscarDashboardAdmin } from "../api/admin";
 import { buscarMinhasInteracoes } from "../api/auth";
@@ -31,6 +31,7 @@ import type {
   SugestaoIA,
 } from "../types";
 import { obterImagemProduto } from "../utils/produtoImagem";
+import { ProductGallery } from "../components/ProductGallery";
 
 export function FavoritesPage() {
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
@@ -169,6 +170,7 @@ export function CartPage() {
   const [carrinho, setCarrinho] = useState<Carrinho | null>(null);
   const [pedido, setPedido] = useState<PedidoWhatsapp | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [finalizando, setFinalizando] = useState(false);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
 
@@ -181,7 +183,6 @@ export function CartPage() {
       setCarrinho(carrinhoAtual);
     } catch (error) {
       const texto = error instanceof Error ? error.message : "";
-
       if (texto.toLowerCase().includes("carrinho")) {
         setCarrinho(null);
       } else {
@@ -193,34 +194,34 @@ export function CartPage() {
   }
 
   useEffect(() => {
-    carregarCarrinho();
+    void carregarCarrinho();
   }, []);
 
   const itens = carrinho?.itens ?? [];
+  const totalUnidades = itens.reduce((soma, item) => soma + item.quantidade, 0);
   const total = itens.reduce((soma, item) => {
     const preco = Number(item.produtoVariacao.produto.preco);
     return soma + preco * item.quantidade;
   }, 0);
+  const moeda = (valor: number) => valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
   async function alterarQuantidade(itemId: number, quantidade: number) {
-    if (quantidade <= 0) return;
-
+    const quantidadeSegura = Math.min(99, Math.max(1, Math.floor(quantidade)));
     setErro("");
     setMensagem("");
     setPedido(null);
 
     try {
-      await atualizarQuantidadeItemCarrinho(itemId, quantidade);
-      setCarrinho((atual) =>
-        atual
-          ? {
-              ...atual,
-              itens: atual.itens.map((item) =>
-                item.id === itemId ? { ...item, quantidade } : item
-              ),
-            }
-          : atual
-      );
+      await atualizarQuantidadeItemCarrinho(itemId, quantidadeSegura);
+      setCarrinho((atual) => atual ? {
+        ...atual,
+        itens: atual.itens.map((item) => item.id === itemId
+          ? { ...item, quantidade: quantidadeSegura }
+          : item),
+      } : atual);
       window.dispatchEvent(new Event("dropzone:carrinho-atualizado"));
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao alterar quantidade.");
@@ -234,15 +235,11 @@ export function CartPage() {
 
     try {
       await removerItemCarrinho(itemId);
-      setCarrinho((atual) =>
-        atual
-          ? {
-              ...atual,
-              itens: atual.itens.filter((item) => item.id !== itemId),
-            }
-          : atual
-      );
-      setMensagem("Item removido do carrinho.");
+      setCarrinho((atual) => atual ? {
+        ...atual,
+        itens: atual.itens.filter((item) => item.id !== itemId),
+      } : atual);
+      setMensagem("Peça removida do carrinho.");
       window.dispatchEvent(new Event("dropzone:carrinho-atualizado"));
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao remover item.");
@@ -250,138 +247,144 @@ export function CartPage() {
   }
 
   async function finalizar() {
+    if (itens.length === 0 || finalizando) return;
     setErro("");
     setMensagem("");
     setPedido(null);
+    setFinalizando(true);
 
     try {
       const resultado = await gerarPedidoWhatsapp();
       setPedido(resultado);
-      setMensagem("Pedido pronto para enviar pelo WhatsApp.");
+      setMensagem("Seu pedido está pronto para revisar e enviar pelo WhatsApp.");
       window.dispatchEvent(new Event("dropzone:carrinho-atualizado"));
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao finalizar carrinho.");
+      setErro(error instanceof Error ? error.message : "Erro ao preparar o pedido.");
+    } finally {
+      setFinalizando(false);
     }
   }
 
   return (
-    <main className="section cart-page">
-      <div className="section-heading">
-        <div>
-          <span className="eyebrow">Carrinho</span>
-          <h1>Seu carrinho DropZone</h1>
+    <main className="section cart-page dz-cart-page">
+      <header className="cart-page-header">
+        <div className="cart-page-title">
+          <span className="eyebrow">DropZone / Sacola</span>
+          <h1>Seu carrinho.</h1>
+          <p>Confira as peças, ajuste as quantidades e prepare seu pedido.</p>
         </div>
+        <div className="cart-header-actions">
+          {!carregando && itens.length > 0 && (
+            <span className="cart-count-pill">
+              <ShoppingBag size={16} aria-hidden="true" />
+              {totalUnidades} {totalUnidades === 1 ? "peça" : "peças"}
+            </span>
+          )}
+          <a className="btn btn-outline cart-continue-top" href="/catalogo">
+            <ArrowLeft size={16} aria-hidden="true" /> Continuar comprando
+          </a>
+        </div>
+      </header>
 
-        <a className="btn btn-outline" href="/catalogo">
-          Continuar comprando
-        </a>
-      </div>
-
-      {mensagem && <p className="success page-message">{mensagem}</p>}
-      {erro && <p className="error page-message">{erro}</p>}
+      {mensagem && <p className="success page-message" role="status">{mensagem}</p>}
+      {erro && <p className="error page-message" role="alert">{erro}</p>}
 
       {carregando ? (
-        <p className="status-text">Carregando carrinho...</p>
+        <div className="cart-loading"><span className="cart-loading-dot" /> Carregando sua sacola...</div>
       ) : itens.length === 0 ? (
-        <section className="empty-panel inline-empty">
-          <span className="eyebrow">Carrinho vazio</span>
-          <h2>Nenhuma peça adicionada.</h2>
-          <p>
-            Escolha uma peça, selecione cor e tamanho, e adicione ao carrinho
-            para montar o pedido.
-          </p>
+        <section className="cart-empty-state">
+          <div className="cart-empty-icon"><ShoppingBag size={34} aria-hidden="true" /></div>
+          <span className="eyebrow">Sua sacola está vazia</span>
+          <h2>Seu próximo look começa aqui.</h2>
+          <p>Explore o catálogo, escolha suas peças favoritas e volte para montar seu pedido.</p>
           <a className="btn btn-primary" href="/catalogo">
-            Ver catálogo
+            Explorar catálogo <ArrowRight size={17} aria-hidden="true" />
           </a>
         </section>
       ) : (
-        <div className="cart-layout">
-          <section className="cart-list">
-            {itens.map((item) => {
+        <div className="cart-layout dz-cart-layout">
+          <section className="cart-list dz-cart-list" aria-label="Peças adicionadas ao carrinho">
+            <div className="cart-list-header">
+              <strong>Suas peças</strong>
+              <span>{totalUnidades} {totalUnidades === 1 ? "unidade" : "unidades"}</span>
+            </div>
+            {itens.map((item, index) => {
               const variacao = item.produtoVariacao;
               const produto = variacao.produto;
               const preco = Number(produto.preco);
               const subtotal = preco * item.quantidade;
+              const detalheVariacao = [variacao.cor?.nome, variacao.tamanho?.nome]
+                .filter((parte) => parte && parte.toLowerCase() !== "sem cor")
+                .join(" / ") || "Variação única";
 
               return (
-                <article className="cart-item" key={item.id}>
-                  <a className="cart-image" href={`/produtos/${produto.id}`}>
-                    <img
-                      src={obterImagemProduto(produto)}
-                      alt={produto.nome}
-                    />
+                <article className="cart-item dz-cart-item" key={item.id}>
+                  <a className="cart-image" href={`/produtos/${produto.id}`} aria-label={`Ver ${produto.nome}`}>
+                    <img src={obterImagemProduto(produto)} alt={produto.nome} />
                   </a>
-
                   <div className="cart-copy">
-                    <small>
-                      {variacao.cor?.nome ?? "Cor não informada"} / {variacao.tamanho.nome}
-                    </small>
-                    <a href={`/produtos/${produto.id}`}>
-                      <strong>{produto.nome}</strong>
-                    </a>
-                    <span>
-                      {preco.toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </span>
+                    <small>PEÇA {String(index + 1).padStart(2, "0")}</small>
+                    <a href={`/produtos/${produto.id}`}><strong>{produto.nome}</strong></a>
+                    <span className="cart-variant-label">{detalheVariacao}</span>
+                    <span className="cart-unit-price">{moeda(preco)} <span>/ unidade</span></span>
                   </div>
-
-                  <label className="cart-quantity">
-                    Qtd.
-                    <input
-                      min={1}
-                      max={99}
-                      type="number"
-                      value={item.quantidade}
-                      onChange={(event) =>
-                        alterarQuantidade(item.id, Number(event.target.value))
-                      }
-                    />
-                  </label>
-
-                  <strong className="cart-subtotal">
-                    {subtotal.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </strong>
-
-                  <button
-                    className="cart-remove"
-                    type="button"
-                    onClick={() => remover(item.id)}
-                    aria-label={`Remover ${produto.nome}`}
-                  >
-                    <X size={18} />
+                  <div className="cart-quantity-block">
+                    <span>Quantidade</span>
+                    <div className="cart-qty-control">
+                      <button type="button" disabled={item.quantidade <= 1} onClick={() => void alterarQuantidade(item.id, item.quantidade - 1)} aria-label={`Diminuir quantidade de ${produto.nome}`}>
+                        <Minus size={14} aria-hidden="true" />
+                      </button>
+                      <output aria-label={`Quantidade: ${item.quantidade}`}>{item.quantidade}</output>
+                      <button type="button" disabled={item.quantidade >= 99} onClick={() => void alterarQuantidade(item.id, item.quantidade + 1)} aria-label={`Aumentar quantidade de ${produto.nome}`}>
+                        <Plus size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="cart-item-total">
+                    <small>Subtotal</small>
+                    <strong>{moeda(subtotal)}</strong>
+                  </div>
+                  <button className="cart-remove" type="button" onClick={() => void remover(item.id)} aria-label={`Remover ${produto.nome}`} title="Remover peça">
+                    <X size={17} aria-hidden="true" />
                   </button>
                 </article>
               );
             })}
           </section>
 
-          <aside className="cart-summary">
-            <span className="eyebrow">Resumo</span>
-            <h2>
-              {total.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </h2>
-            <p>
-              Ao finalizar, o sistema gera a mensagem do pedido e o link do
-              WhatsApp da loja.
-            </p>
-            <button className="btn btn-primary" type="button" onClick={finalizar}>
-              Finalizar pelo WhatsApp
+          <aside className="cart-summary dz-cart-summary">
+            <div className="cart-summary-heading">
+              <span className="eyebrow">Resumo do pedido</span>
+              <span className="cart-summary-count">{totalUnidades} {totalUnidades === 1 ? "peça" : "peças"}</span>
+            </div>
+            <div className="cart-summary-row">
+              <span>Subtotal das peças</span>
+              <strong>{moeda(total)}</strong>
+            </div>
+            <div className="cart-summary-row cart-summary-shipping">
+              <span>Frete e pagamento</span>
+              <span>Combinados no atendimento</span>
+            </div>
+            <div className="cart-summary-total">
+              <span>Total dos produtos</span>
+              <strong>{moeda(total)}</strong>
+            </div>
+            <p>Ao continuar, você gera o resumo do pedido para revisar e enviar à loja pelo WhatsApp.</p>
+            <button className="btn btn-primary cart-checkout-button" type="button" onClick={() => void finalizar()} disabled={finalizando || itens.length === 0}>
+              <MessageCircle size={18} aria-hidden="true" />
+              {finalizando ? "Preparando pedido..." : "Finalizar pelo WhatsApp"}
+              {!finalizando && <ArrowRight size={17} aria-hidden="true" />}
             </button>
+            <a className="cart-summary-continue" href="/catalogo">Adicionar mais peças</a>
 
             {pedido && (
-              <div className="whatsapp-result">
-                <a className="btn whatsapp-btn" href={pedido.whatsappUrl} target="_blank">
-                  Abrir WhatsApp
+              <div className="whatsapp-result dz-whatsapp-result">
+                <span className="whatsapp-ready"><CheckCircle2 size={16} aria-hidden="true" /> Pedido preparado</span>
+                <a className="btn whatsapp-btn" href={pedido.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                  Abrir WhatsApp <ArrowRight size={16} aria-hidden="true" />
                 </a>
-                <textarea readOnly value={pedido.mensagem} />
+                <label className="whatsapp-message-label" htmlFor="mensagem-pedido">Mensagem do pedido</label>
+                <textarea id="mensagem-pedido" readOnly value={pedido.mensagem} />
               </div>
             )}
           </aside>
@@ -818,7 +821,12 @@ export function ProductDetailPage({ id }: { id: string }) {
   const [variacaoSelecionada, setVariacaoSelecionada] =
     useState<ProdutoVariacao | null>(null);
   const [quantidade, setQuantidade] = useState(1);
+  const [adicionandoCarrinho, setAdicionandoCarrinho] = useState(false);
+  const [carrinhoConfirmado, setCarrinhoConfirmado] = useState(false);
+  const [favoritado, setFavoritado] = useState(false);
+  const [carregandoFavorito, setCarregandoFavorito] = useState(false);
   const [nota, setNota] = useState(5);
+  const [notaHover, setNotaHover] = useState(0);
   const [comentario, setComentario] = useState("");
   const [sugestao, setSugestao] = useState<SugestaoIA | null>(null);
   const [produtosSugestao, setProdutosSugestao] = useState<Record<number, Produto>>({});
@@ -861,12 +869,43 @@ export function ProductDetailPage({ id }: { id: string }) {
     };
   }, [produtoId]);
 
-  const imagemPrincipal = obterImagemProduto(produto);
+  useEffect(() => {
+    let ativo = true;
 
-  const preco = Number(produto?.preco ?? 0).toLocaleString("pt-BR", {
+    if (!estaLogado) {
+      setFavoritado(false);
+      setCarregandoFavorito(false);
+      return () => {
+        ativo = false;
+      };
+    }
+
+    setCarregandoFavorito(true);
+    listarFavoritos()
+      .then((favoritosAtuais) => {
+        if (ativo) {
+          setFavoritado(favoritosAtuais.some((favorito) => favorito.produtoId === produtoId));
+        }
+      })
+      .catch(() => {
+        if (ativo) setFavoritado(false);
+      })
+      .finally(() => {
+        if (ativo) setCarregandoFavorito(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [estaLogado, produtoId]);
+
+  const precoNumerico = Number(produto?.preco ?? 0);
+  const formatarMoedaProduto = (valor: number) => valor.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
+  const preco = formatarMoedaProduto(precoNumerico);
+  const subtotalSelecionado = formatarMoedaProduto(precoNumerico * quantidade);
 
   const mediaAvaliacoes = useMemo(() => {
     if (produto?.mediaAvaliacoes !== undefined) return Number(produto.mediaAvaliacoes);
@@ -885,37 +924,56 @@ export function ProductDetailPage({ id }: { id: string }) {
     return true;
   }
 
-  async function favoritar() {
-    if (!produto || exigirLogin()) return;
+  async function alternarFavoritoProduto() {
+    if (!produto || exigirLogin() || carregandoFavorito) return;
 
     setMensagem("");
     setErro("");
+    setCarrinhoConfirmado(false);
+    setCarregandoFavorito(true);
 
     try {
-      await adicionarFavorito(produto.id);
-      setMensagem("Produto adicionado aos favoritos.");
+      if (favoritado) {
+        await removerFavorito(produto.id);
+        setFavoritado(false);
+        setMensagem("Produto removido dos favoritos.");
+      } else {
+        await adicionarFavorito(produto.id);
+        setFavoritado(true);
+        setMensagem("Produto adicionado aos favoritos.");
+      }
     } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao favoritar.");
+      setErro(error instanceof Error ? error.message : "Não foi possível atualizar os favoritos.");
+    } finally {
+      setCarregandoFavorito(false);
     }
   }
 
   async function adicionarAoCarrinho() {
-    if (exigirLogin()) return;
+    if (!produto) return;
 
-    if (!variacaoSelecionada) {
-      setErro("Selecione uma variação disponível.");
+    if (!variacaoSelecionada || !variacaoSelecionada.disponivel) {
+      setErro("Selecione uma variação disponível antes de adicionar ao carrinho.");
       return;
     }
 
+    if (exigirLogin()) return;
+
+    const quantidadeSegura = Math.min(99, Math.max(1, Math.floor(quantidade || 1)));
+    setQuantidade(quantidadeSegura);
+    setAdicionandoCarrinho(true);
+    setCarrinhoConfirmado(false);
     setMensagem("");
     setErro("");
 
     try {
-      await adicionarItemCarrinho(variacaoSelecionada.id, quantidade);
-      setMensagem("Produto adicionado ao carrinho.");
+      await adicionarItemCarrinho(variacaoSelecionada.id, quantidadeSegura);
+      setCarrinhoConfirmado(true);
       window.dispatchEvent(new Event("dropzone:carrinho-atualizado"));
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao adicionar ao carrinho.");
+    } finally {
+      setAdicionandoCarrinho(false);
     }
   }
 
@@ -1042,51 +1100,76 @@ export function ProductDetailPage({ id }: { id: string }) {
   }
 
   return (
-    <main className="product-page">
-      <section className="product-detail">
-        <div className="detail-gallery">
-          <div className="detail-image">
-            <img src={imagemPrincipal} alt={produto.nome} />
-            {produto.destaque && <span className="badge">Destaque</span>}
-          </div>
+    <main className="product-page dz-product-page">
+      <nav className="product-breadcrumb" aria-label="Você está em">
+        <a href="/">Início</a>
+        <span aria-hidden="true">/</span>
+        <a href="/catalogo">Catálogo</a>
+        <span aria-hidden="true">/</span>
+        <span>{produto.categoria?.nome ?? "Peças"}</span>
+      </nav>
 
-          {produto.imagens && produto.imagens.length > 1 && (
-            <div className="thumb-row">
-              {produto.imagens.slice(0, 4).map((imagem) => (
-                <img key={imagem.id} src={imagem.imagemUrl} alt="" />
-              ))}
-            </div>
-          )}
+      <section className="product-detail dz-product-detail">
+        <div className="product-gallery-column">
+          <ProductGallery produto={produto} />
+          <div className="product-gallery-meta">
+            <span>DROPZONE / ORIGINAL STREETWEAR</span>
+            <span>REF. DZ-{String(produto.id).padStart(4, "0")}</span>
+          </div>
         </div>
 
-        <div className="detail-copy">
-          <span className="eyebrow">{produto.categoria?.nome ?? "DropZone"}</span>
+        <div className="detail-copy product-info-panel">
+          <div className="product-info-topline">
+            <span className="eyebrow">{produto.categoria?.nome ?? "DropZone"}</span>
+            <span className="product-ref">DZ-{String(produto.id).padStart(4, "0")}</span>
+          </div>
           <h1>{produto.nome}</h1>
-          <strong className="detail-price">{preco}</strong>
-          <p>{produto.descricao}</p>
+          <div className="product-price-block">
+            <strong className="detail-price">{preco}</strong>
+            <span>Preço da peça</span>
+          </div>
+          <p className="product-description">
+            {produto.descricao?.trim() || "Uma peça do drop atual DropZone. Escolha sua variação e adicione à sacola para preparar seu pedido."}
+          </p>
 
-          <div className="rating-line">
-            <span>{mediaAvaliacoes.toFixed(1)} ★</span>
-            <small>{avaliacoes.length} avaliações</small>
+          <div className="product-rating-summary">
+            <div className="product-rating-stars" aria-label={`${mediaAvaliacoes.toFixed(1)} de 5 estrelas`}>
+              {Array.from({ length: 5 }, (_, index) => (
+                <span key={index} className={index < Math.round(mediaAvaliacoes) ? "is-filled" : ""} aria-hidden="true">★</span>
+              ))}
+            </div>
+            <strong>{mediaAvaliacoes.toFixed(1)}</strong>
+            <a href="#avaliacoes">
+              {avaliacoes.length} {avaliacoes.length === 1 ? "avaliação" : "avaliações"}
+            </a>
           </div>
 
           <div className="variation-box">
-            <span className="field-label">Variação</span>
+            <div className="variation-heading">
+              <span className="field-label">Escolha sua variação</span>
+              {variacaoSelecionada && (
+                <span className={`variation-stock ${variacaoSelecionada.disponivel ? "is-available" : "is-unavailable"}`}>
+                  <i aria-hidden="true" />
+                  {variacaoSelecionada.disponivel ? "Disponível" : "Indisponível"}
+                </span>
+              )}
+            </div>
             {produto.variacoes && produto.variacoes.length > 0 ? (
               <div className="variation-grid">
                 {produto.variacoes.map((variacao) => (
                   <button
                     key={variacao.id}
-                    className={
-                      variacaoSelecionada?.id === variacao.id
-                        ? "variation-option selected"
-                        : "variation-option"
-                    }
+                    className={variacaoSelecionada?.id === variacao.id ? "variation-option selected" : "variation-option"}
                     type="button"
                     disabled={!variacao.disponivel}
-                    onClick={() => setVariacaoSelecionada(variacao)}
+                    aria-pressed={variacaoSelecionada?.id === variacao.id}
+                    onClick={() => {
+                      setVariacaoSelecionada(variacao);
+                      setCarrinhoConfirmado(false);
+                      setErro("");
+                    }}
                   >
-                    <span>{variacao.tamanho?.nome ?? "Tamanho"}</span>
+                    <span>{variacao.tamanho?.nome ?? "Único"}</span>
                     <small>{variacao.cor?.nome ?? "Sem cor"}</small>
                   </button>
                 ))}
@@ -1096,37 +1179,89 @@ export function ProductDetailPage({ id }: { id: string }) {
             )}
           </div>
 
-          <div className="detail-actions">
-            <label>
-              Qtd.
-              <input
-                min={1}
-                max={99}
-                type="number"
-                value={quantidade}
-                onChange={(event) => setQuantidade(Number(event.target.value))}
-              />
-            </label>
+          <div className="product-selection-meta">
+            <span>Quantidade</span>
+            <span className="product-subtotal-label">Subtotal da seleção <strong>{subtotalSelecionado}</strong></span>
+          </div>
+          <div className="detail-actions product-detail-actions">
+            <div className="product-quantity-field">
+              <div className="quantity-stepper" aria-label="Quantidade do produto">
+                <button type="button" disabled={quantidade <= 1} onClick={() => { setQuantidade((atual) => Math.max(1, atual - 1)); setCarrinhoConfirmado(false); }} aria-label="Diminuir quantidade">
+                  <Minus size={14} aria-hidden="true" />
+                </button>
+                <input
+                  min={1}
+                  max={99}
+                  type="number"
+                  inputMode="numeric"
+                  value={quantidade}
+                  aria-label="Quantidade"
+                  onChange={(event) => {
+                    const valor = Number(event.target.value);
+                    setQuantidade(Math.min(99, Math.max(1, Math.floor(valor || 1))));
+                    setCarrinhoConfirmado(false);
+                  }}
+                />
+                <button type="button" disabled={quantidade >= 99} onClick={() => { setQuantidade((atual) => Math.min(99, atual + 1)); setCarrinhoConfirmado(false); }} aria-label="Aumentar quantidade">
+                  <Plus size={14} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
 
-            <button className="btn btn-primary" type="button" onClick={adicionarAoCarrinho}>
-              Adicionar ao carrinho
+            <button
+              className="btn btn-primary product-add-button"
+              type="button"
+              onClick={() => void adicionarAoCarrinho()}
+              disabled={adicionandoCarrinho || !variacaoSelecionada?.disponivel}
+            >
+              <ShoppingBag size={17} aria-hidden="true" />
+              {adicionandoCarrinho ? "Adicionando..." : "Adicionar ao carrinho"}
+              {!adicionandoCarrinho && <ArrowRight size={17} aria-hidden="true" />}
             </button>
 
-            <button className="btn btn-outline" type="button" onClick={favoritar}>
-              Favoritar
+            <button
+              className={`btn ${favoritado ? "btn-primary is-favorited" : "btn-outline"} product-favorite-button`}
+              type="button"
+              onClick={() => void alternarFavoritoProduto()}
+              disabled={carregandoFavorito}
+              aria-pressed={favoritado}
+            >
+              <Heart size={16} fill={favoritado ? "currentColor" : "none"} aria-hidden="true" />
+              {carregandoFavorito ? "Salvando..." : favoritado ? "Favoritado" : "Favoritar"}
             </button>
           </div>
 
-          <button className="ia-button" type="button" onClick={gerarSugestaoIa}>
+          {carrinhoConfirmado && (
+            <div className="cart-added-confirmation" role="status" aria-live="polite">
+              <div className="cart-added-copy">
+                <CheckCircle2 size={22} aria-hidden="true" />
+                <span>
+                  <strong>Adicionado ao carrinho</strong>
+                  <small>{quantidade} × {produto.nome}</small>
+                </span>
+              </div>
+              <div className="cart-added-actions">
+                <a href="/carrinho" className="cart-confirmation-link">Ver carrinho <ArrowRight size={15} aria-hidden="true" /></a>
+                <button type="button" onClick={() => setCarrinhoConfirmado(false)}>Continuar vendo</button>
+              </div>
+            </div>
+          )}
+
+          <div className="product-order-note">
+            <MessageCircle size={16} aria-hidden="true" />
+            <span>Revise seu carrinho e envie o pedido pelo WhatsApp da loja.</span>
+          </div>
+
+          <button className="ia-button" type="button" onClick={() => void gerarSugestaoIa()} disabled={carregandoIa}>
             <Sparkles size={15} aria-hidden="true" />
-            {carregandoIa ? "Gerando sugestão..." : "Gerar look com IA"}
+            {carregandoIa ? "Montando combinação..." : "Montar look com IA"}
+            {!carregandoIa && <ArrowRight size={15} aria-hidden="true" />}
           </button>
 
-          {mensagem && <p className="success">{mensagem}</p>}
-          {erro && <p className="error">{erro}</p>}
+          {mensagem && <p className="success" role="status">{mensagem}</p>}
+          {erro && <p className="error" role="alert">{erro}</p>}
         </div>
       </section>
-
       {sugestao && (
         <section className="detail-section ia-result">
           <span className="eyebrow ai-eyebrow">
@@ -1174,44 +1309,83 @@ export function ProductDetailPage({ id }: { id: string }) {
         </section>
       )}
 
-      <section className="detail-section reviews-section">
-        <div className="section-heading compact">
+      <section className="detail-section reviews-section" id="avaliacoes">
+        <div className="section-heading compact reviews-heading">
           <div>
             <span className="eyebrow">Avaliações</span>
             <h2>Opinião de quem usa</h2>
           </div>
+          <span className="review-count">
+            {avaliacoes.length} {avaliacoes.length === 1 ? "avaliação" : "avaliações"}
+          </span>
         </div>
 
         <form className="review-form" onSubmit={enviarAvaliacao}>
-          <select
-            value={nota}
-            onChange={(event) => setNota(Number(event.target.value))}
-            aria-label="Nota"
-          >
-            <option value={5}>5 estrelas</option>
-            <option value={4}>4 estrelas</option>
-            <option value={3}>3 estrelas</option>
-            <option value={2}>2 estrelas</option>
-            <option value={1}>1 estrela</option>
-          </select>
+          <div className="review-rating-picker">
+            <span className="review-rating-label">Sua nota</span>
+            <div className="review-stars" role="group" aria-label="Escolha uma nota de 1 a 5 estrelas">
+              {[1, 2, 3, 4, 5].map((valor) => (
+                <button
+                  key={valor}
+                  className={`review-star-button ${valor <= (notaHover || nota) ? "is-active" : ""}`}
+                  type="button"
+                  aria-label={`${valor} ${valor === 1 ? "estrela" : "estrelas"}`}
+                  aria-pressed={nota === valor}
+                  title={`${valor} ${valor === 1 ? "estrela" : "estrelas"}`}
+                  onClick={() => setNota(valor)}
+                  onMouseEnter={() => setNotaHover(valor)}
+                  onMouseLeave={() => setNotaHover(0)}
+                  onFocus={() => setNotaHover(valor)}
+                  onBlur={() => setNotaHover(0)}
+                >
+                  <span aria-hidden="true">★</span>
+                </button>
+              ))}
+            </div>
+            <span className="review-rating-value">{nota} de 5</span>
+          </div>
+
           <textarea
             value={comentario}
             onChange={(event) => setComentario(event.target.value)}
-            placeholder="Escreva sua avaliação..."
+            placeholder="Conte o que achou desta peça..."
+            aria-label="Escreva sua avaliação"
+            rows={3}
           />
-          <button className="btn btn-primary" type="submit">
-            Enviar
+          <button className="btn btn-primary review-submit" type="submit">
+            Publicar avaliação
           </button>
         </form>
 
         <div className="review-list">
           {avaliacoes.length === 0 ? (
-            <p className="status-text">Ainda não há avaliações para esse produto.</p>
+            <div className="review-empty-state">
+              <span className="review-empty-star" aria-hidden="true">☆</span>
+              <div>
+                <strong>Seja a primeira pessoa a avaliar</strong>
+                <p>Sua opinião ajuda outras pessoas a escolherem melhor.</p>
+              </div>
+            </div>
           ) : (
             avaliacoes.map((avaliacao) => (
-              <article key={avaliacao.id}>
-                <strong>{avaliacao.nota} ★</strong>
-                <small>{avaliacao.usuario?.nome ?? "Cliente DropZone"}</small>
+              <article className="review-card" key={avaliacao.id}>
+                <div className="review-card-top">
+                  <div
+                    className="review-stars-display"
+                    aria-label={`${avaliacao.nota} de 5 estrelas`}
+                  >
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <span
+                        key={index}
+                        className={index < avaliacao.nota ? "is-filled" : ""}
+                        aria-hidden="true"
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <small>{avaliacao.usuario?.nome ?? "Cliente DropZone"}</small>
+                </div>
                 {avaliacao.comentario && <p>{avaliacao.comentario}</p>}
                 {avaliacao.respostaAdmin && (
                   <div className="admin-reply">
