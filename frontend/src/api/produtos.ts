@@ -52,6 +52,7 @@ export function atualizarProduto(
     preco: number;
     categoriaId: number;
     destaque?: boolean;
+    imagemUrl?: string;
   }
 ) {
   return apiFetch<Produto>(`/produtos/${id}`, {

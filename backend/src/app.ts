@@ -12,12 +12,14 @@ import { avaliacoesRoutes } from "./modules/avaliacoes/avaliacoes.routes.js"
 import { carrinhoRoutes } from "./modules/carrinho/carrinho.routes.js"
 import { adminRoutes } from "./modules/admin/admin.routes.js";
 import { iaRoutes } from "./modules/ia/ia.routes.js";
+import { uploadRoutes } from "./modules/upload/upload.routes.js";
 
 
 export const app = express()
 
 app.use(cors())
 app.use(express.json())
+app.use("/uploads", express.static("public/uploads"))
 
 app.get("/teste", (req, res)=>{
     res.json({status: "server rodando"})
@@ -33,3 +35,4 @@ app.use("/tamanhos", tamanhosRoutes);
 app.use("/avaliacoes", avaliacoesRoutes);
 app.use("/carrinho", carrinhoRoutes);
 app.use("/ia", iaRoutes);
+app.use("/upload", uploadRoutes);

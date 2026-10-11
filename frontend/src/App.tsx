@@ -1,6 +1,7 @@
 import { AuthProvider } from "./auth/AuthContext";
 import { Header } from "./components/Header";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { NavigationProvider, useNavigation } from "./components/NavigationContext";
 import {
   AdminCrudPage,
   AdminInteractionsPage,
@@ -19,7 +20,7 @@ import {
 import { RegisterPage } from "./pages/RegisterPage";
 
 function Router() {
-  const { pathname } = window.location;
+  const { pathname } = useNavigation();
   const produtoMatch = pathname.match(/^\/produtos\/(\d+)$/);
 
   if (pathname === "/") return <HomePage />;
@@ -118,9 +119,11 @@ function Router() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Header />
-      <Router />
-    </AuthProvider>
+    <NavigationProvider>
+      <AuthProvider>
+        <Header />
+        <Router />
+      </AuthProvider>
+    </NavigationProvider>
   );
 }

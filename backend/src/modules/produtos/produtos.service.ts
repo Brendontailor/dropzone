@@ -1,4 +1,5 @@
 import { prisma } from "../../database/prisma.js";
+import { Prisma } from "../../generated/prisma/client.js";
 
 interface CriarProdutoData {
   nome: string;
@@ -15,6 +16,7 @@ interface AtualizarProdutoData {
   preco: number;
   categoriaId: number;
   destaque?: boolean;
+  imagemUrl?: string;
 }
 
 interface ListarProdutosFiltros {
@@ -135,17 +137,34 @@ export async function atualizarProduto(
   id: number,
   data: AtualizarProdutoData
 ) {
+  const updateData: Prisma.ProdutoUpdateInput = {
+    nome: data.nome,
+    descricao: data.descricao,
+    preco: data.preco,
+    categoria: { connect: { id: data.categoriaId } },
+    destaque: data.destaque,
+  };
+
+  if (data.imagemUrl !== undefined) {
+    if (data.imagemUrl) {
+      updateData.imagens = {
+        deleteMany: {},
+        create: {
+          imagemUrl: data.imagemUrl,
+        },
+      };
+    } else {
+      updateData.imagens = {
+        deleteMany: {},
+      };
+    }
+  }
+
   const produto = await prisma.produto.update({
     where: {
       id,
     },
-    data: {
-      nome: data.nome,
-      descricao: data.descricao,
-      preco: data.preco,
-      categoriaId: data.categoriaId,
-      destaque: data.destaque,
-    },
+    data: updateData,
     include: produtoInclude,
   });
 

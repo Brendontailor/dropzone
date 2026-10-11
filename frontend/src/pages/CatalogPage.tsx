@@ -7,7 +7,17 @@ function getParametro(nome: string) {
   return new URLSearchParams(window.location.search).get(nome) ?? "";
 }
 
+const pecasPorLook: Record<string,string[]> = {
+  "1": ["peca-19.webp","peca-24.webp"],
+  "2": ["peca-17.webp"],
+  "3": ["peca-22.webp","peca-23.webp"],
+  "4": ["peca-16.webp","peca-17.webp"],
+  "5": ["peca-01.webp","peca-21.webp"],
+  "6": ["peca-20.webp","peca-21.webp"],
+};
 export function CatalogPage() {
+  const look = getParametro("look");
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [busca, setBusca] = useState(() => getParametro("busca"));
   const [somenteDestaque, setSomenteDestaque] = useState(
@@ -27,7 +37,9 @@ export function CatalogPage() {
         destaque: somenteDestaque || undefined,
       });
 
-      setProdutos(lista);
+      setProdutos(look && pecasPorLook[look] ? lista.filter(produto =>
+        produto.imagens?.some(img => pecasPorLook[look].some(nome => img.imagemUrl?.endsWith(nome)))
+      ) : lista);
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao carregar catálogo.");
       setProdutos([]);
@@ -41,8 +53,8 @@ export function CatalogPage() {
   }, []);
 
   const titulo = useMemo(
-    () => (somenteDestaque ? "Destaques da DropZone" : "Peças em movimento"),
-    [somenteDestaque]
+    () => (look && pecasPorLook[look] ? `Peças do look ${look.padStart(2,"0")}` : somenteDestaque ? "Destaques da DropZone" : "Peças em movimento"),
+    [somenteDestaque, look]
   );
 
   async function pesquisar(event: FormEvent<HTMLFormElement>) {
@@ -79,6 +91,7 @@ export function CatalogPage() {
         </form>
       </div>
 
+      {look && pecasPorLook[look] && <div className="dz-look-context"><span>CURADORIA DROPZONE</span><p>Estas são as peças disponíveis que compõem o visual selecionado.</p><a href="/catalogo">Ver coleção completa →</a></div>}
       {carregando ? (
         <p className="status-text">Carregando produtos...</p>
       ) : erro ? (

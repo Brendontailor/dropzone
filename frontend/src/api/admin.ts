@@ -39,3 +39,23 @@ export function listarPedidosAdmin() {
     auth: true,
   });
 }
+
+export function uploadImagemProduto(file: File) {
+  const formData = new FormData();
+  formData.append("imagem", file);
+
+  return apiFetch<{ url: string }>("/upload/produto", {
+    method: "POST",
+    auth: true,
+    body: formData,
+    headers: {},
+  });
+}
+
+export function deletarImagemProduto(url: string) {
+  return apiFetch<{ mensagem: string }>("/upload/produto", {
+    method: "DELETE",
+    auth: true,
+    body: JSON.stringify({ url }),
+  });
+}

@@ -19,6 +19,14 @@ const categorias = [
   { nome: "Acessórios", busca: "acessório", imagem: "/home/categoria-acessorios.webp" },
 ];
 
+const looks = [
+  { nome: "Denim District", estilo: "Denim solto + camiseta gráfica", imagem: "/colecao/modelos/look-01.webp", pecas: ["peca-19.webp", "peca-24.webp"] },
+  { nome: "Utility State", estilo: "Cargo e presença urbana", imagem: "/colecao/modelos/look-02.webp", pecas: ["peca-17.webp"] },
+  { nome: "Green Motion", estilo: "Estampa oversized + jogger", imagem: "/colecao/modelos/look-03.webp", pecas: ["peca-22.webp", "peca-23.webp"] },
+  { nome: "Concrete Grey", estilo: "Moletom amplo + cargo", imagem: "/colecao/modelos/look-04.webp", pecas: ["peca-16.webp", "peca-17.webp"] },
+  { nome: "Off-Duty", estilo: "Gráfica branca + wide leg", imagem: "/colecao/modelos/look-05.webp", pecas: ["peca-01.webp", "peca-21.webp"] },
+  { nome: "Dark Layers", estilo: "Camadas e silhueta solta", imagem: "/colecao/modelos/look-06.webp", pecas: ["peca-20.webp", "peca-21.webp"] },
+];
 export function HomePage() {
   const { estaLogado } = useAuth();
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -157,8 +165,8 @@ export function HomePage() {
 
         <div className="hero-content">
           <span className="eyebrow">DropZone / Streetwear</span>
-          <h1>Seu estilo. Sua rua.</h1>
-          <p>Streetwear para viver a cidade do seu jeito. Explore as peças e encontre seu próximo look.</p>
+          <h1>A RUA É SUA.\nO ESTILO TAMBÉM.</h1>
+          <p>Peças que falam por você. Descubra o novo drop e monte um visual que é só seu.</p>
           <a className="btn btn-primary" href="/catalogo">
             Ver catálogo
           </a>
@@ -189,7 +197,19 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section graphite-section">
+      <section className="dz-models section" aria-label="Looks da coleção">
+        <div className="section-heading dz-models-heading">
+          <div><span className="eyebrow">DROPZONE / EDITORIAL</span><h2>Viu o look? Encontre as peças.</h2></div>
+          <p>Selecione um visual para ver as roupas que fazem parte dele.</p>
+        </div>
+        <div className="dz-models-grid">
+          {looks.map((look, i) => <a className="dz-model-card" key={look.nome} href={`/catalogo?look=${i+1}`}>
+            <img src={look.imagem} alt={`Modelo vestindo o look ${look.nome}`} loading="lazy" />
+            <div className="dz-model-overlay"><small>LOOK 0{i+1}</small><strong>{look.nome}</strong><span>{look.estilo}</span><em>Ver peças do look →</em></div>
+          </a>)}
+        </div>
+      </section>
+\n      <section className="section graphite-section">
         <div className="section-heading">
           <div>
             <span className="eyebrow">Selecionados</span>

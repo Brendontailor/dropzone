@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "API responsável pelo backend de uma plataforma web de vitrine e venda de roupas, desenvolvida como projeto acadêmico do curso de **Análise e Desenvolvimento de Sistemas do SENAC-RS**.",
   "main": "index.js",
-"scripts": {
-  "dev": "npx tsx watch src/server.ts",
-  "build": "npx prisma generate && npx tsc && node -e \"require('node:fs').cpSync('src/generated', 'dist/generated', { recursive: true })\"",
-  "start": "node dist/server.js",
-  "db:migrate": "npx prisma migrate deploy",
-  "db:seed": "npx prisma db seed"
-},
+  "scripts": {
+    "dev": "npx tsx watch src/server.ts",
+    "build": "npx prisma generate && npx tsc && node -e \"require('node:fs').cpSync('src/generated', 'dist/generated', { recursive: true })\"",
+    "start": "node dist/server.js",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:seed": "npx prisma db seed"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/leonardorosler/dropzone-backend.git"
@@ -26,11 +26,16 @@
     "@google/genai": "^2.24.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@types/multer": "^2.3.0",
+    "@types/uuid": "^10.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "sharp": "^0.35.5",
+    "uuid": "^14.0.3",
     "zod": "^4.6.1"
   },
   "devDependencies": {

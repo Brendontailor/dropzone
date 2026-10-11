@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigation } from "../components/NavigationContext";
+import { Edit, Trash2 } from "lucide-react";
 import {
   excluirAvaliacaoAdmin,
   listarAvaliacoesAdmin,
   listarFavoritosAdmin,
   listarPedidosAdmin,
   responderAvaliacaoAdmin,
+  uploadImagemProduto,
 } from "../api/admin";
 import {
   atualizarCategoria,
@@ -42,14 +45,29 @@ import type {
 } from "../types";
 
 export function AdminNav() {
+  const { navigate, pathname } = useNavigation();
+
+  const tabs = [
+    { path: "/admin", label: "Dashboard" },
+    { path: "/admin/produtos", label: "Produtos" },
+    { path: "/admin/interacoes", label: "Interações" },
+    { path: "/admin/categorias", label: "Categorias" },
+    { path: "/admin/cores", label: "Cores" },
+    { path: "/admin/tamanhos", label: "Tamanhos" },
+  ];
+
   return (
     <nav className="admin-tabs">
-      <a href="/admin">Dashboard</a>
-      <a href="/admin/produtos">Produtos</a>
-      <a href="/admin/interacoes">Interações</a>
-      <a href="/admin/categorias">Categorias</a>
-      <a href="/admin/cores">Cores</a>
-      <a href="/admin/tamanhos">Tamanhos</a>
+      {tabs.map((tab) => (
+        <button
+          key={tab.path}
+          type="button"
+          className={pathname === tab.path ? "active" : ""}
+          onClick={() => navigate(tab.path)}
+        >
+          {tab.label}
+        </button>
+      ))}
     </nav>
   );
 }
@@ -261,6 +279,9 @@ export function AdminProductsPage() {
     imagemUrl: "",
     destaque: false,
   });
+  const [imagemFile, setImagemFile] = useState<File | null>(null);
+  const [imagemPreview, setImagemPreview] = useState<string | null>(null);
+  const [uploadandoImagem, setUploadandoImagem] = useState(false);
   const [variacaoForm, setVariacaoForm] = useState({
     corId: "",
     tamanhoId: "",
@@ -306,18 +327,22 @@ export function AdminProductsPage() {
       imagemUrl: "",
       destaque: false,
     });
+    setImagemFile(null);
+    setImagemPreview(null);
   }
 
   function editar(produto: Produto) {
     setEditandoId(produto.id);
+    const imagemUrl = produto.imagens?.[0]?.imagemUrl ?? "";
     setForm({
       nome: produto.nome,
       descricao: produto.descricao ?? "",
       preco: String(produto.preco),
       categoriaId: String(produto.categoriaId ?? produto.categoria?.id ?? ""),
-      imagemUrl: produto.imagens?.[0]?.imagemUrl ?? "",
+      imagemUrl,
       destaque: Boolean(produto.destaque),
     });
+    setImagemPreview(imagemUrl || null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -335,13 +360,25 @@ export function AdminProductsPage() {
     };
 
     try {
+      let imagemUrlFinal = form.imagemUrl.trim() || undefined;
+
+      if (imagemFile) {
+        setUploadandoImagem(true);
+        try {
+          const resultado = await uploadImagemProduto(imagemFile);
+          imagemUrlFinal = resultado.url;
+        } finally {
+          setUploadandoImagem(false);
+        }
+      }
+
       if (editandoId) {
-        await atualizarProduto(editandoId, payload);
+        await atualizarProduto(editandoId, { ...payload, imagemUrl: imagemUrlFinal });
         setMensagem("Produto atualizado.");
       } else {
         await criarProduto({
           ...payload,
-          imagemUrl: form.imagemUrl.trim() || undefined,
+          imagemUrl: imagemUrlFinal,
         });
         setMensagem("Produto cadastrado.");
       }
@@ -486,8 +523,40 @@ export function AdminProductsPage() {
           </select>
         </label>
         <label>
-          Imagem URL
-          <input disabled={Boolean(editandoId)} value={form.imagemUrl} onChange={(event) => setForm({ ...form, imagemUrl: event.target.value })} />
+          Imagem do Produto
+          <div className="imagem-upload">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  setImagemFile(file);
+                  setImagemPreview(URL.createObjectURL(file));
+                  setForm({ ...form, imagemUrl: file.name });
+                }
+              }}
+              disabled={uploadandoImagem}
+            />
+            {imagemPreview && (
+              <div className="imagem-preview">
+                <img src={imagemPreview} alt="Preview" />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setImagemFile(null);
+                    setImagemPreview(null);
+                    setForm({ ...form, imagemUrl: "" });
+                  }}
+                  disabled={uploadandoImagem}
+                >
+                  Remover
+                </button>
+              </div>
+            )}
+            {uploadandoImagem && <span className="upload-status">Enviando...</span>}
+          </div>
         </label>
         <label className="span-2">
           Descrição
@@ -514,17 +583,29 @@ export function AdminProductsPage() {
       ) : (
         <div className="admin-list">
           {produtos.map((produto) => (
-            <article className="admin-list-row" key={produto.id}>
-              <div>
-                <strong>{produto.nome}</strong>
-                <span>
-                  {produto.categoria?.nome ?? "Sem categoria"} /{" "}
-                  {Number(produto.preco).toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </span>
-              </div>
+<article className="admin-list-row" key={produto.id}>
+                <div className="admin-product-image">
+                  {produto.imagens?.[0]?.imagemUrl ? (
+                    <img
+                      src={produto.imagens[0].imagemUrl}
+                      alt={produto.nome}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <span className="no-image">Sem imagem</span>
+                  )}
+                </div>
+                <div>
+                  <strong>{produto.nome}</strong>
+                  <span>
+                    {produto.categoria?.nome ?? "Sem categoria"} /{" "}
+                    {Number(produto.preco).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </span>
+                </div>
               <div className="table-actions">
                 <button className="btn btn-outline" type="button" onClick={() => editar(produto)}>
                   Editar
@@ -741,7 +822,7 @@ export function AdminCrudPage({ tipo }: { tipo: CrudTipo }) {
       {mensagem && <p className="success page-message">{mensagem}</p>}
       {erro && <p className="error page-message">{erro}</p>}
 
-      <form className="admin-form-grid compact-form" onSubmit={salvar}>
+      <form className="admin-form-grid crud-form" onSubmit={salvar}>
         <label>
           Nome
           <input value={nome} onChange={(event) => setNome(event.target.value)} />
@@ -766,17 +847,19 @@ export function AdminCrudPage({ tipo }: { tipo: CrudTipo }) {
 
       <div className="admin-list">
         {itens.map((item) => (
-          <article className="admin-list-row" key={item.id}>
-            <div>
+          <article className="admin-list-row admin-list-row--crud" key={item.id}>
+            <div className="admin-list-row__content">
               <strong>{item.nome}</strong>
               {"hex" in item && item.hex && <span>{item.hex}</span>}
             </div>
             <div className="table-actions">
-              <button className="btn btn-outline" type="button" onClick={() => editar(item)}>
-                Editar
+              <button className="btn btn-action btn-action--edit" type="button" onClick={() => editar(item)} aria-label={`Editar ${item.nome}`}>
+                <Edit size={14} aria-hidden="true" />
+                <span>Editar</span>
               </button>
-              <button className="btn btn-outline" type="button" onClick={() => remover(item.id)}>
-                Deletar
+              <button className="btn btn-action btn-action--delete" type="button" onClick={() => remover(item.id)} aria-label={`Deletar ${item.nome}`}>
+                <Trash2 size={14} aria-hidden="true" />
+                <span>Deletar</span>
               </button>
             </div>
           </article>

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './styles/global.css'
 import './styles/polish.css'
+import './styles/dz-refine.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
