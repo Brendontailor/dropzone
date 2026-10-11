@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigation } from "../components/NavigationContext";
 import { Edit, Trash2 } from "lucide-react";
+import { importarNovoLote } from "../api/looks";
 import {
   excluirAvaliacaoAdmin,
   listarAvaliacoesAdmin,
@@ -50,6 +51,7 @@ export function AdminNav() {
   const tabs = [
     { path: "/admin", label: "Dashboard" },
     { path: "/admin/produtos", label: "Produtos" },
+    { path: "/admin/looks", label: "Looks" },
     { path: "/admin/interacoes", label: "Interações" },
     { path: "/admin/categorias", label: "Categorias" },
     { path: "/admin/cores", label: "Cores" },
@@ -290,6 +292,7 @@ export function AdminProductsPage() {
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [importando, setImportando] = useState(false);
 
   async function carregar() {
     setCarregando(true);
@@ -489,6 +492,22 @@ export function AdminProductsPage() {
     }
   }
 
+  async function importar() {
+    if (!window.confirm("Importar 20 novos produtos, 35 fotos e 6 looks? Os registros já importados não serão duplicados nem terão seus ajustes sobrescritos.")) return;
+    setImportando(true);
+    setErro("");
+    setMensagem("");
+    try {
+      const resultado = await importarNovoLote();
+      await carregar();
+      setMensagem(`Lote conferido: ${resultado.produtosCriados} produto(s) criado(s), ${resultado.produtosExistentes} já existente(s), ${resultado.fotosAdicionadas} foto(s) nova(s), ${resultado.variacoesAdicionadas} variação(ões) nova(s), ${resultado.looksCriados} look(s) novo(s).`);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao importar o lote.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
   return (
     <main className="section admin-dashboard-page">
       <AdminNav />
@@ -499,6 +518,16 @@ export function AdminProductsPage() {
         </div>
       </div>
 
+      <div className="dz-import-strip">
+        <div>
+          <span className="eyebrow">NOVO LOTE / 10.10.2026</span>
+          <h2>20 produtos · 35 fotos · 6 looks</h2>
+          <p>Importe as peças com tamanhos e preços iniciais. Confira os valores e a disponibilidade antes de vender.</p>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={importar} disabled={importando}>
+          {importando ? "Importando..." : "Importar Novo Lote"}
+        </button>
+      </div>
       {mensagem && <p className="success page-message">{mensagem}</p>}
       {erro && <p className="error page-message">{erro}</p>}
 

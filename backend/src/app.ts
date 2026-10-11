@@ -1,4 +1,6 @@
 import express from "express"
+import { novoLoteRoutes } from "./modules/admin/novo-lote.routes.js";
+import { looksRoutes } from "./modules/looks/looks.routes.js"
 import cors from "cors"
 
 import { categoriasRoutes } from "./modules/categorias/categorias.routes.js"
@@ -25,6 +27,8 @@ app.get("/teste", (req, res)=>{
     res.json({status: "server rodando"})
 })
 app.use("/admin", adminRoutes);
+app.use("/admin", novoLoteRoutes);
+app.use("/looks", looksRoutes);
 app.use("/categorias", categoriasRoutes)
 app.use("/produtos", produtosRoutes);
 app.use("/usuarios", usuariosRoutes)

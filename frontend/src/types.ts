@@ -148,3 +148,14 @@ export interface DashboardAdmin {
     totalAvaliacoes: number;
   }>;
 }
+
+export interface Look {
+  id: number;
+  codigo: string;
+  nome: string;
+  descricao: string;
+  imagemUrl: string;
+  ordem: number;
+  publicado: boolean;
+  itens: Array<{ produtoId: number; ordem: number; produto: Produto }>;
+}

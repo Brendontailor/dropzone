@@ -35,7 +35,7 @@ interface CriarVariacaoData {
 
 const produtoInclude = {
   categoria: true,
-  imagens: true,
+  imagens: { orderBy: { id: "asc" as const } },
   variacoes: {
     include: {
       cor: true,
@@ -145,18 +145,20 @@ export async function atualizarProduto(
     destaque: data.destaque,
   };
 
+  // Preserva ângulos adicionais ao editar preço, nome e demais campos.
+  // Se o admin alterar a capa, substitui apenas a primeira imagem.
   if (data.imagemUrl !== undefined) {
     if (data.imagemUrl) {
-      updateData.imagens = {
-        deleteMany: {},
-        create: {
-          imagemUrl: data.imagemUrl,
-        },
-      };
+      const capa = await prisma.produtoImagem.findFirst({
+        where: { produtoId: id }, orderBy: { id: "asc" },
+      });
+      if (!capa) {
+        await prisma.produtoImagem.create({ data: { produtoId: id, imagemUrl: data.imagemUrl } });
+      } else if (capa.imagemUrl !== data.imagemUrl) {
+        await prisma.produtoImagem.update({ where: { id: capa.id }, data: { imagemUrl: data.imagemUrl } });
+      }
     } else {
-      updateData.imagens = {
-        deleteMany: {},
-      };
+      updateData.imagens = { deleteMany: {} };
     }
   }
 

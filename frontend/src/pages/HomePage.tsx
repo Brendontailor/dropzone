@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { adicionarItemCarrinho } from "../api/carrinho";
 import { sugerirLook } from "../api/ia";
 import { listarProdutos } from "../api/produtos";
+import { imagemLookUrl, listarLooks } from "../api/looks";
 import { useAuth } from "../auth/AuthContext";
 import { ProductCard } from "../components/ProductCard";
-import type { Produto, SugestaoIA } from "../types";
+import type { Look, Produto, SugestaoIA } from "../types";
 import { obterImagemProduto } from "../utils/produtoImagem";
 
 const categorias = [
@@ -19,17 +20,10 @@ const categorias = [
   { nome: "Acessórios", busca: "acessório", imagem: "/home/categoria-acessorios.webp" },
 ];
 
-const looks = [
-  { nome: "Denim District", estilo: "Denim solto + camiseta gráfica", imagem: "/colecao/modelos/look-01.webp", pecas: ["peca-19.webp", "peca-24.webp"] },
-  { nome: "Utility State", estilo: "Cargo e presença urbana", imagem: "/colecao/modelos/look-02.webp", pecas: ["peca-17.webp"] },
-  { nome: "Green Motion", estilo: "Estampa oversized + jogger", imagem: "/colecao/modelos/look-03.webp", pecas: ["peca-22.webp", "peca-23.webp"] },
-  { nome: "Concrete Grey", estilo: "Moletom amplo + cargo", imagem: "/colecao/modelos/look-04.webp", pecas: ["peca-16.webp", "peca-17.webp"] },
-  { nome: "Off-Duty", estilo: "Gráfica branca + wide leg", imagem: "/colecao/modelos/look-05.webp", pecas: ["peca-01.webp", "peca-21.webp"] },
-  { nome: "Dark Layers", estilo: "Camadas e silhueta solta", imagem: "/colecao/modelos/look-06.webp", pecas: ["peca-20.webp", "peca-21.webp"] },
-];
 export function HomePage() {
   const { estaLogado } = useAuth();
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [looks, setLooks] = useState<Look[]>([]);
   const [sugestaoIa, setSugestaoIa] = useState<SugestaoIA | null>(null);
   const [produtosSugestao, setProdutosSugestao] = useState<Record<number, Produto>>({});
   const [indiceProdutoIa, setIndiceProdutoIa] = useState(0);
@@ -39,6 +33,7 @@ export function HomePage() {
   const [erroIa, setErroIa] = useState("");
 
   useEffect(() => {
+    listarLooks().then(setLooks).catch(() => setLooks([]));
     listarProdutos({ disponivel: true })
       .then(setProdutos)
       .catch(() => setProdutos([]))
@@ -165,10 +160,10 @@ export function HomePage() {
 
         <div className="hero-content">
           <span className="eyebrow">DropZone / Streetwear</span>
-          <h1>A RUA É SUA.\nO ESTILO TAMBÉM.</h1>
-          <p>Peças que falam por você. Descubra o novo drop e monte um visual que é só seu.</p>
+          <h1 className="dz-hero-headline">A RUA É NOSSA.<br /><span>O ESTILO É SEU.</span></h1>
+          <p>Streetwear para quem tem identidade própria. Explore a coleção e monte seu próximo look.</p>
           <a className="btn btn-primary" href="/catalogo">
-            Ver catálogo
+            Explorar coleção →
           </a>
         </div>
 
@@ -199,17 +194,18 @@ export function HomePage() {
 
       <section className="dz-models section" aria-label="Looks da coleção">
         <div className="section-heading dz-models-heading">
-          <div><span className="eyebrow">DROPZONE / EDITORIAL</span><h2>Viu o look? Encontre as peças.</h2></div>
-          <p>Selecione um visual para ver as roupas que fazem parte dele.</p>
+          <div><span className="eyebrow">DROPZONE / EDITORIAL</span><h2>O look completo. Peça por peça.</h2></div>
+          <p>Escolha um visual e descubra as roupas que fazem parte dele.</p>
         </div>
-        <div className="dz-models-grid">
-          {looks.map((look, i) => <a className="dz-model-card" key={look.nome} href={`/catalogo?look=${i+1}`}>
-            <img src={look.imagem} alt={`Modelo vestindo o look ${look.nome}`} loading="lazy" />
-            <div className="dz-model-overlay"><small>LOOK 0{i+1}</small><strong>{look.nome}</strong><span>{look.estilo}</span><em>Ver peças do look →</em></div>
+        {looks.length > 0 && <div className="dz-models-grid">
+          {looks.map((look, i) => <a className="dz-model-card" key={look.id} href={`/catalogo?look=${look.id}`}>
+            <img src={imagemLookUrl(look.imagemUrl)} alt={`Modelo vestindo o look ${look.nome}`} loading="lazy" />
+            <div className="dz-model-overlay"><small>LOOK {String(i + 1).padStart(2,"0")} · {look.itens.length} PEÇAS</small><strong>{look.nome}</strong><span>{look.descricao}</span><em>Conhecer as peças →</em></div>
           </a>)}
-        </div>
+        </div>}
       </section>
-\n      <section className="section graphite-section">
+
+      <section className="section graphite-section">
         <div className="section-heading">
           <div>
             <span className="eyebrow">Selecionados</span>

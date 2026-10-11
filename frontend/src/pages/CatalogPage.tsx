@@ -1,22 +1,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { listarProdutos } from "../api/produtos";
+import { imagemLookUrl, listarLooks } from "../api/looks";
 import { ProductCard } from "../components/ProductCard";
-import type { Produto } from "../types";
+import type { Look, Produto } from "../types";
 
 function getParametro(nome: string) {
   return new URLSearchParams(window.location.search).get(nome) ?? "";
 }
 
-const pecasPorLook: Record<string,string[]> = {
-  "1": ["peca-19.webp","peca-24.webp"],
-  "2": ["peca-17.webp"],
-  "3": ["peca-22.webp","peca-23.webp"],
-  "4": ["peca-16.webp","peca-17.webp"],
-  "5": ["peca-01.webp","peca-21.webp"],
-  "6": ["peca-20.webp","peca-21.webp"],
-};
 export function CatalogPage() {
-  const look = getParametro("look");
+  const lookId = Number(getParametro("look"));
+  const buscandoLook = Number.isInteger(lookId) && lookId > 0;
+  const [look, setLook] = useState<Look | null>(null);
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [busca, setBusca] = useState(() => getParametro("busca"));
@@ -31,15 +26,22 @@ export function CatalogPage() {
     setErro("");
 
     try {
-      const lista = await listarProdutos({
-        busca: busca.trim() || undefined,
-        disponivel: true,
-        destaque: somenteDestaque || undefined,
-      });
-
-      setProdutos(look && pecasPorLook[look] ? lista.filter(produto =>
-        produto.imagens?.some(img => pecasPorLook[look].some(nome => img.imagemUrl?.endsWith(nome)))
-      ) : lista);
+      const [lista, looks] = await Promise.all([
+        listarProdutos({
+          busca: buscandoLook ? undefined : busca.trim() || undefined,
+          disponivel: true,
+          destaque: buscandoLook ? undefined : somenteDestaque || undefined,
+        }),
+        buscandoLook ? listarLooks() : Promise.resolve([]),
+      ]);
+      const selecionado = buscandoLook ? looks.find(item => item.id === lookId) ?? null : null;
+      setLook(selecionado);
+      if (buscandoLook) {
+        const produtosPorId = new Map(lista.map(produto => [produto.id, produto]));
+        setProdutos(selecionado ? selecionado.itens.map(item => produtosPorId.get(item.produtoId)).filter((produto): produto is Produto => Boolean(produto)) : []);
+      } else {
+        setProdutos(lista);
+      }
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao carregar catálogo.");
       setProdutos([]);
@@ -53,8 +55,8 @@ export function CatalogPage() {
   }, []);
 
   const titulo = useMemo(
-    () => (look && pecasPorLook[look] ? `Peças do look ${look.padStart(2,"0")}` : somenteDestaque ? "Destaques da DropZone" : "Peças em movimento"),
-    [somenteDestaque, look]
+    () => (buscandoLook ? (look?.nome ?? "Look não encontrado") : somenteDestaque ? "Destaques da DropZone" : "Peças em movimento"),
+    [somenteDestaque, look, buscandoLook]
   );
 
   async function pesquisar(event: FormEvent<HTMLFormElement>) {
@@ -70,7 +72,7 @@ export function CatalogPage() {
           <h1>{titulo}</h1>
         </div>
 
-        <form className="search-form" onSubmit={pesquisar}>
+        {!buscandoLook && <form className="search-form" onSubmit={pesquisar}>
           <input
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
@@ -88,10 +90,13 @@ export function CatalogPage() {
           <button className="btn btn-primary" type="submit">
             Buscar
           </button>
-        </form>
+        </form>}
       </div>
 
-      {look && pecasPorLook[look] && <div className="dz-look-context"><span>CURADORIA DROPZONE</span><p>Estas são as peças disponíveis que compõem o visual selecionado.</p><a href="/catalogo">Ver coleção completa →</a></div>}
+      {buscandoLook && look && <div className="dz-look-hero">
+        <img src={imagemLookUrl(look.imagemUrl)} alt={`Visual ${look.nome}`} />
+        <div><span className="eyebrow">CURADORIA DROPZONE / {look.itens.length} PEÇAS</span><h2>{look.nome}</h2><p>{look.descricao}</p><p>Explore abaixo todas as peças disponíveis deste visual. Os tamanhos são selecionados na página de cada produto.</p><a className="btn btn-outline" href="/catalogo">Explorar todo o catálogo →</a></div>
+      </div>}
       {carregando ? (
         <p className="status-text">Carregando produtos...</p>
       ) : erro ? (

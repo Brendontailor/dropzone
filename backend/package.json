@@ -4,11 +4,13 @@
   "description": "API responsável pelo backend de uma plataforma web de vitrine e venda de roupas, desenvolvida como projeto acadêmico do curso de **Análise e Desenvolvimento de Sistemas do SENAC-RS**.",
   "main": "index.js",
   "scripts": {
-    "dev": "npx tsx watch src/server.ts",
+    "dev": "npm run db:prepare && npx tsx watch src/server.ts",
     "build": "npx prisma generate && npx tsc && node -e \"require('node:fs').cpSync('src/generated', 'dist/generated', { recursive: true })\"",
     "start": "node dist/server.js",
     "db:migrate": "npx prisma migrate deploy",
-    "db:seed": "npx prisma db seed"
+    "db:seed": "npx prisma db seed",
+    "db:importar-novo-lote": "npx tsx prisma/seed-novo-lote.ts",
+    "db:prepare": "npx prisma migrate deploy && npx prisma generate"
   },
   "repository": {
     "type": "git",

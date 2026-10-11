@@ -8,6 +8,7 @@ import {
   AdminProductsPage,
 } from "./pages/AdminPages";
 import { CatalogPage } from "./pages/CatalogPage";
+import { AdminLooksPage } from "./pages/AdminLooksPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import {
@@ -62,6 +63,10 @@ function Router() {
         <AdminProductsPage />
       </ProtectedRoute>
     );
+  }
+
+  if (pathname === "/admin/looks") {
+    return <ProtectedRoute admin><AdminLooksPage /></ProtectedRoute>;
   }
 
   if (pathname === "/admin/interacoes") {

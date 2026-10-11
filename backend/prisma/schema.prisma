@@ -37,6 +37,8 @@ model Produto {
   atualizadoEm DateTime          @updatedAt
   id           Int               @id @default(autoincrement())
   categoriaId  Int
+  codigoLote   String?           @unique
+  looks        LookProduto[]
   avaliacoes   Avaliacao[]
   favoritos    Favorito[]
   categoria    Categoria         @relation(fields: [categoriaId], references: [id])
@@ -131,4 +133,35 @@ model ItemCarrinho {
 enum Role {
   CLIENTE
   ADMIN
+}
+
+// Editorial administrável: produto ligado por ID, nunca pelo nome da imagem.
+model Look {
+  id           Int           @id @default(autoincrement())
+  codigo       String        @unique
+  nome         String
+  descricao    String        @default("")
+  imagemUrl    String
+  ordem        Int           @default(0)
+  publicado    Boolean       @default(true)
+  criadoEm     DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
+  itens        LookProduto[]
+}
+
+model LookProduto {
+  lookId    Int
+  produtoId Int
+  ordem     Int     @default(0)
+  look      Look    @relation(fields: [lookId], references: [id], onDelete: Cascade)
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@id([lookId, produtoId])
+  @@index([produtoId])
+}
+
+// Registro técnico para evitar reimportar produtos excluídos pelo administrador.
+model CatalogoImportacao {
+  codigo String @id
+  criadoEm DateTime @default(now())
 }
